@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 # Wait for SSH on both VMs, copy rancherd and its Harvester bootstrap fixtures,
-# and export the variables used by the other scripts through GITHUB_ENV.
+# and write the variables used by subsequent stages to CLUSTER_ENV_FILE.
 #
 # Environment:
 #   VM_IDS              JSON array of VM IDs from the create-ci-cluster action
 #   CLUSTER_SSH_CONFIG  SSH config path from the create-ci-cluster action
+#   CLUSTER_ENV_FILE    Environment output file (defaults to GITHUB_ENV in Actions)
 #   RANCHER_VERSION     Rancher version used in the chart values and node config
 #   RANCHERD_BINARY     Binary to install (default: bin/rancherd-amd64)
 set -euo pipefail
 
-: "${VM_IDS:?}" "${CLUSTER_SSH_CONFIG:?}" "${GITHUB_ENV:?}" "${RANCHER_VERSION:?}"
+cluster_env_file=${CLUSTER_ENV_FILE:-${GITHUB_ENV:-}}
+: "${VM_IDS:?}" "${CLUSTER_SSH_CONFIG:?}" "${cluster_env_file:?}" "${RANCHER_VERSION:?}"
 binary=${RANCHERD_BINARY:-bin/rancherd-amd64}
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 fixtures_dir="$script_dir/../fixtures/rancherd"
@@ -31,7 +33,9 @@ if [ "${#ids[@]}" -ne 2 ]; then
 fi
 
 token=$(openssl rand -hex 16)
-echo "::add-mask::$token"
+if [ "${GITHUB_ACTIONS:-}" = true ]; then
+  echo "::add-mask::$token"
+fi
 
 export SSH_CONFIG=$CLUSTER_SSH_CONFIG
 source "$script_dir/lib.sh"
@@ -49,7 +53,7 @@ fi
   echo "NODE1_IP=$node1_ip"
   echo "RANCHER_SERVER_URL=https://$node1_ip:443"
   echo "RANCHERD_TEST_TOKEN=$token"
-} >> "$GITHUB_ENV"
+} >> "$cluster_env_file"
 
 chmod +x "$binary"
 for id in "${ids[@]}"; do

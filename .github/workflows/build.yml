@@ -40,8 +40,6 @@ jobs:
       GATEWAY_URL: ${{ vars.GATEWAY_URL }}
       GATEWAY_IMAGE: ${{ vars.GATEWAY_IMAGE }}
       GATEWAY_NETWORK: ${{ vars.GATEWAY_NETWORK }}
-      RANCHER_VERSION: v2.15.1
-      KUBERNETES_VERSION: v1.36.4+rke2r1
     steps:
     - name: Checkout code
       uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -63,24 +61,12 @@ jobs:
         username: ubuntu
         ttl-seconds: '7200'
 
-    - name: Prepare nodes
+    - name: Test cluster
       env:
         VM_IDS: ${{ steps.cluster.outputs.vm-ids }}
         CLUSTER_SSH_CONFIG: ${{ steps.cluster.outputs.ssh-config-path }}
       shell: bash
-      run: bash .github/scripts/prepare-nodes.sh
-
-    - name: Bootstrap node 1 (cluster-init)
-      run: bash .github/scripts/install-node.sh cluster-init
-
-    - name: Wait for node 1
-      run: bash .github/scripts/wait-node1.sh
-
-    - name: Join node 2 (agent)
-      run: bash .github/scripts/install-node.sh agent
-
-    - name: Wait for both nodes
-      run: bash .github/scripts/wait-cluster.sh
+      run: bash .github/scripts/test-cluster.sh
 
     - name: Collect diagnostics
       if: failure()

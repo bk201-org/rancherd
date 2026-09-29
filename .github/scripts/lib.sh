@@ -1,6 +1,6 @@
 # Shared helpers for the cluster test scripts. Source this file; do not run it.
 #
-# Expected environment (set by prepare-nodes.sh through GITHUB_ENV):
+# Expected environment (loaded by test-cluster.sh, or GITHUB_ENV in Actions):
 #   SSH_CONFIG, NODE1_ID, NODE2_ID, NODE1_IP, RANCHER_SERVER_URL,
 #   RANCHERD_TEST_TOKEN
 
