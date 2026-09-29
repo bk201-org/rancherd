@@ -1,0 +1,63 @@
+name: Set up BuildKit Go cache
+description: Restore and save Go cache mounts across container builds in GitHub Actions.
+
+inputs:
+  cache-prefix:
+    description: Prefix for the GitHub cache key.
+    default: rancherd
+  dependency-file:
+    description: Workspace-relative dependency file or glob to hash in the cache key.
+    default: go.sum
+  module-cache-target:
+    description: Container path used by GOMODCACHE.
+    default: /go/pkg/mod
+  module-cache-id:
+    description: BuildKit cache mount ID for Go modules.
+    default: rancherd-go-mod-ci
+  build-cache-target:
+    description: Container path used by GOCACHE.
+    default: /go/src/github.com/harvester/rancherd/.cache/go-build
+  build-cache-id:
+    description: BuildKit cache mount ID for compiled Go packages.
+    default: rancherd-go-build-ci
+
+outputs:
+  builder:
+    description: Buildx builder to use for subsequent Docker builds.
+    value: ${{ steps.buildx.outputs.name }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+    # Post steps run in reverse order: extract, save, then remove the builder.
+    - name: Restore Go build cache
+      id: go-cache
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: .cache/buildkit
+        key: ${{ inputs.cache-prefix }}-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-go-${{ hashFiles(inputs.dependency-file) }}-${{ github.sha }}
+        restore-keys: |
+          ${{ inputs.cache-prefix }}-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-go-${{ hashFiles(inputs.dependency-file) }}-
+          ${{ inputs.cache-prefix }}-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-go-
+
+    - name: Inject Go build cache into BuildKit
+      uses: reproducible-containers/buildkit-cache-dance@1b8ab18fbda5ad3646e3fcc9ed9dd41ce2f297b4 # v3.3.2
+      with:
+        builder: ${{ steps.buildx.outputs.name }}
+        scratch-dir: .cache/buildkit-scratch
+        skip-extraction: ${{ steps.go-cache.outputs.cache-hit }}
+        cache-map: |
+          {
+            ".cache/buildkit/go-mod": {
+              "target": ${{ toJSON(inputs.module-cache-target) }},
+              "id": ${{ toJSON(inputs.module-cache-id) }}
+            },
+            ".cache/buildkit/go-build": {
+              "target": ${{ toJSON(inputs.build-cache-target) }},
+              "id": ${{ toJSON(inputs.build-cache-id) }}
+            }
+          }
