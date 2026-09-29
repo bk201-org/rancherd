@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wait for SSH on both VMs, copy the rancherd binary and install.sh to them,
+# Wait for SSH on both VMs, copy rancherd and its Harvester bootstrap fixtures,
 # and export the variables used by the other scripts through GITHUB_ENV.
 #
 # Environment:
@@ -10,6 +10,8 @@ set -euo pipefail
 
 : "${VM_IDS:?}" "${CLUSTER_SSH_CONFIG:?}" "${GITHUB_ENV:?}"
 binary=${RANCHERD_BINARY:-bin/rancherd-amd64}
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+fixtures_dir="$script_dir/../fixtures/rancherd"
 
 mapfile -t ids < <(jq -r '.[]' <<< "$VM_IDS")
 if [ "${#ids[@]}" -ne 2 ]; then
@@ -21,9 +23,9 @@ token=$(openssl rand -hex 16)
 echo "::add-mask::$token"
 
 export SSH_CONFIG=$CLUSTER_SSH_CONFIG
-source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+source "$script_dir/lib.sh"
 
-node1_ip=$(ssh -F "$SSH_CONFIG" -G "${ids[0]}" | awk '$1 == "hostname" {print $2}')
+node1_ip=$(ssh -T -F "$SSH_CONFIG" -G "${ids[0]}" | awk '$1 == "hostname" {print $2}')
 if [ -z "$node1_ip" ]; then
   echo "::error::cannot determine the IP of ${ids[0]}"
   exit 1
@@ -54,7 +56,10 @@ for id in "${ids[@]}"; do
     exit 1
   fi
   ssh_vm "$id" 'cloud-init status --wait' || true
-  scp -F "$SSH_CONFIG" -o BatchMode=yes "$binary" install.sh "$id:/tmp/"
-  ssh_vm "$id" "sudo install -m 0755 /tmp/$(basename "$binary") /usr/local/bin/rancherd && rancherd --version || true"
+  scp -F "$SSH_CONFIG" -o BatchMode=yes "$binary" install.sh "$fixtures_dir/"*.yaml "$id:/tmp/"
+  ssh_vm "$id" "sudo install -m 0755 /tmp/$(basename "$binary") /usr/local/bin/rancherd && /usr/local/bin/rancherd info" </dev/null
+  # Harvester normally supplies these files in the OS image. The repository
+  # manifest is also read directly from this exact path during plan generation.
+  ssh_vm "$id" 'sudo mkdir -p /usr/share/rancher/rancherd/config.yaml.d && sudo install -m 0644 /tmp/50-ci.yaml /tmp/91-harvester-bootstrap-repo.yaml /usr/share/rancher/rancherd/config.yaml.d/' </dev/null
   echo "::endgroup::"
 done
