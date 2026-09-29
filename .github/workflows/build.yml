@@ -18,6 +18,13 @@ jobs:
     - name: Run make ci
       run: make ci
 
+    - name: Upload rancherd binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: rancherd-amd64
+        path: dist/artifacts/rancherd-amd64
+        if-no-files-found: error
+
     - name: Release
       if: startsWith(github.ref, 'refs/tags/')
       env:
@@ -27,3 +34,63 @@ jobs:
         gh release upload ${{ github.ref_name }} dist/artifacts/rancherd-arm64
         gh release upload ${{ github.ref_name }} dist/artifacts/sha256sum-amd64.txt
         gh release upload ${{ github.ref_name }} dist/artifacts/sha256sum-arm64.txt
+
+  test-cluster:
+    name: Test 2-node cluster
+    needs: build
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    runs-on: [self-hosted, harvester-runners]
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GATEWAY_URL: ${{ vars.GATEWAY_URL }}
+      GATEWAY_IMAGE: ${{ vars.GATEWAY_IMAGE }}
+      GATEWAY_NETWORK: ${{ vars.GATEWAY_NETWORK }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+    - name: Download rancherd binary
+      uses: actions/download-artifact@v4
+      with:
+        name: rancherd-amd64
+        path: artifact
+
+    - name: Create VMs
+      id: cluster
+      uses: bk201-org/harvester-runner-gateway/actions/create-ci-cluster@main
+      with:
+        gateway-url: ${{ env.GATEWAY_URL }}
+        vm-count: '2'
+        image: ${{ env.GATEWAY_IMAGE }}
+        network: ${{ env.GATEWAY_NETWORK }}
+        cpu: '4'
+        memory: 8Gi
+        boot-disk-size: 40Gi
+        username: ubuntu
+        ttl-seconds: '7200'
+
+    - name: Prepare nodes
+      env:
+        VM_IDS: ${{ steps.cluster.outputs.vm-ids }}
+        CLUSTER_SSH_CONFIG: ${{ steps.cluster.outputs.ssh-config-path }}
+      shell: bash
+      run: bash .github/scripts/prepare-nodes.sh
+
+    - name: Bootstrap node 1 (cluster-init)
+      run: bash .github/scripts/install-node.sh cluster-init
+
+    - name: Wait for node 1
+      run: bash .github/scripts/wait-node1.sh
+
+    - name: Join node 2 (agent)
+      run: bash .github/scripts/install-node.sh agent
+
+    - name: Wait for both nodes
+      run: bash .github/scripts/wait-cluster.sh
+
+    - name: Collect diagnostics
+      if: failure()
+      run: bash .github/scripts/diagnostics.sh
