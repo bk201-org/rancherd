@@ -3,6 +3,7 @@ on:
   push:
     branches:
     - dev
+    - feature/buildkit-go-cache
     tags:
     - v*
   pull_request:
@@ -58,40 +59,3 @@ jobs:
       env:
         BUILDX_BUILDER: ${{ steps.go-cache.outputs.builder }}
       run: make build MK_REPO_ID=ci
-
-    - name: Create VMs
-      id: cluster
-      uses: bk201-org/harvester-runner-gateway/actions/create-ci-cluster@main
-      with:
-        gateway-url: ${{ env.GATEWAY_URL }}
-        vm-count: '2'
-        image: ${{ env.GATEWAY_IMAGE }}
-        network: ${{ env.GATEWAY_NETWORK }}
-        cpu: '4'
-        memory: 8Gi
-        boot-disk-size: 40Gi
-        username: ubuntu
-        ttl-seconds: '7200'
-
-    - name: Prepare nodes
-      env:
-        VM_IDS: ${{ steps.cluster.outputs.vm-ids }}
-        CLUSTER_SSH_CONFIG: ${{ steps.cluster.outputs.ssh-config-path }}
-      shell: bash
-      run: bash .github/scripts/prepare-nodes.sh
-
-    - name: Bootstrap node 1 (cluster-init)
-      run: bash .github/scripts/install-node.sh cluster-init
-
-    - name: Wait for node 1
-      run: bash .github/scripts/wait-node1.sh
-
-    - name: Join node 2 (agent)
-      run: bash .github/scripts/install-node.sh agent
-
-    - name: Wait for both nodes
-      run: bash .github/scripts/wait-cluster.sh
-
-    - name: Collect diagnostics
-      if: failure()
-      run: bash .github/scripts/diagnostics.sh
