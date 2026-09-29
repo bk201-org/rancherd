@@ -42,8 +42,6 @@ jobs:
       GATEWAY_NETWORK: ${{ vars.GATEWAY_NETWORK }}
       RANCHER_VERSION: v2.15.1
       KUBERNETES_VERSION: v1.36.4+rke2r1
-      NODE1_NAME: node1
-      NODE2_NAME: node2
     steps:
     - name: Checkout code
       uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4

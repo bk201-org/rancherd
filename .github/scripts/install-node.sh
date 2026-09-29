@@ -2,8 +2,8 @@
 # Write the rancherd config for a node and start rancherd on it.
 #
 # Usage: install-node.sh cluster-init|agent
-# Versions and node names come from the test-cluster workflow environment.
-# The join endpoint and random token are exported by prepare-nodes.sh.
+# Versions come from the test-cluster workflow environment.
+# VM names, the join endpoint, and token are exported by prepare-nodes.sh.
 set -euo pipefail
 
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -11,11 +11,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 case "${1:-}" in
   cluster-init)
     node_id=${NODE1_ID:?}
-    node_name=${NODE1_NAME:?}
     ;;
   agent)
     node_id=${NODE2_ID:?}
-    node_name=${NODE2_NAME:?}
     : "${RANCHER_SERVER_URL:?}"
     ;;
   *)
@@ -31,7 +29,7 @@ esac
   fi
   cat <<EOF
 role: $1
-nodeName: "$node_name"
+nodeName: "$node_id"
 token: "$RANCHERD_TEST_TOKEN"
 kubernetesVersion: "$KUBERNETES_VERSION"
 rancherVersion: "$RANCHER_VERSION"
