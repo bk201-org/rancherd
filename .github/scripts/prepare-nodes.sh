@@ -5,11 +5,11 @@
 # Environment:
 #   VM_IDS              JSON array of VM IDs from the create-ci-cluster action
 #   CLUSTER_SSH_CONFIG  SSH config path from the create-ci-cluster action
-#   RANCHERD_BINARY     Binary to install (default: artifact/rancherd-amd64)
+#   RANCHERD_BINARY     Binary to install (default: bin/rancherd-amd64)
 set -euo pipefail
 
 : "${VM_IDS:?}" "${CLUSTER_SSH_CONFIG:?}" "${GITHUB_ENV:?}"
-binary=${RANCHERD_BINARY:-artifact/rancherd-amd64}
+binary=${RANCHERD_BINARY:-bin/rancherd-amd64}
 
 mapfile -t ids < <(jq -r '.[]' <<< "$VM_IDS")
 if [ "${#ids[@]}" -ne 2 ]; then
