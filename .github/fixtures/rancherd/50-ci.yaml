@@ -1,6 +1,0 @@
-# Use a concrete version: bootstrap resource and instruction selection compares
-# rancherVersion directly, before any channel resolution.
-# Matches the Rancher installer version in harvester-installer's 50-defaults.yaml.
-rancherVersion: v2.14.2
-rancherValues:
-  replicas: 1

@@ -1,0 +1,18 @@
+# RANCHER_VERSION is rendered by prepare-nodes.sh.
+rancherValues:
+  image:
+    pullPolicy: IfNotPresent
+    repository: rancher/rancher
+    tag: ${RANCHER_VERSION}
+  noDefaultAdmin: false
+  features: multi-cluster-management=false,multi-cluster-management-agent=false,managed-system-upgrade-controller=false,crt-token-ttl-rotation=false
+  useBundledSystemChart: true
+  bootstrapPassword: admin
+  # The agent connects directly to Rancher; CI does not install ingress routes.
+  hostPort: 443
+  replicas: 1
+  agentTLSMode: system-store
+  global:
+    cattle:
+      psp:
+        enabled: false

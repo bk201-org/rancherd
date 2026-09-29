@@ -8,6 +8,8 @@ set -euo pipefail
 
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
+: "${RANCHER_SERVER_URL:?}"
+
 deadline=$((SECONDS + ${WAIT_TIMEOUT_SECONDS:-1800}))
 node_ready=false
 while [ "$SECONDS" -lt "$deadline" ]; do
@@ -20,8 +22,8 @@ while [ "$SECONDS" -lt "$deadline" ]; do
     fi
   fi
   if [ "$node_ready" = true ] &&
-     ssh_vm "$NODE2_ID" "curl -ksf -o /dev/null https://$NODE1_IP:8443/cacerts" </dev/null; then
-    echo "Rancher endpoint https://$NODE1_IP:8443 is reachable from node 2"
+     ssh_vm "$NODE2_ID" "curl -ksf -o /dev/null $RANCHER_SERVER_URL/cacerts" </dev/null; then
+    echo "Rancher endpoint $RANCHER_SERVER_URL is reachable from node 2"
     exit 0
   fi
   sleep 10
